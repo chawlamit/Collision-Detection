@@ -19,6 +19,9 @@ public class PrismManager : MonoBehaviour
     private Dictionary<Prism,bool> prismColliding = new Dictionary<Prism, bool>();
 
     private const float UPDATE_RATE = 0.5f;
+    private int numofpointinsimplex=0;
+    private List<Vector3> pointList = new List<Vector3>();
+    private Vector3 dir;
 
     #region Unity Functions
 
@@ -87,11 +90,13 @@ public class PrismManager : MonoBehaviour
             {
                 prismColliding[prism] = false;
             }
-
+            // Broad Phase
             foreach (var collision in PotentialCollisions())
-            {
+            {   
+                // Narrow Phase
                 if (CheckCollision(collision))
                 {
+                    // if(prismColliding[collision.a])
                     prismColliding[collision.a] = true;
                     prismColliding[collision.b] = true;
 
@@ -122,16 +127,137 @@ public class PrismManager : MonoBehaviour
         yield break;
     }
 
+
+
     private bool CheckCollision(PrismCollision collision)
     {
         var prismA = collision.a;
         var prismB = collision.b;
-
         
         collision.penetrationDepthVectorAB = Vector3.zero;
+        
+        var minkowski = new List<Vector3>();
+        foreach(var p in prismA.points){
+            foreach(var p2 in prismB.points){
+                minkowski.Add( p - p2);
+            }
+        }
 
-        return true;
+        
+
+        pointList = new List<Vector3>();
+        // Start at a random point
+        dir = new Vector3(1,0,1);
+        pointList.Add(getSupport(prismA, prismB, dir)); 
+
+        dir = -pointList[0] ;
+
+        var count = 0;
+        while(count < 10000) {
+            count++;
+            pointList.Add(getSupport(prismA, prismB, dir));
+            // Debug.Log("Point: "+ pointList[1] );
+            // Debug.DrawLine(pointList[0], pointList[1], Color.cyan);
+            if (Vector3.Dot(pointList[pointList.Count - 1], dir) < 0) {
+                Debug.Log("On exit");
+                foreach (Vector3 p in pointList) {
+                    Debug.Log(p);
+                }
+                return false;
+            }
+
+            if(OinSimplex(prismA, prismB)) {
+                Debug.DrawLine(pointList[0], pointList[1], Color.cyan);
+                Debug.DrawLine(pointList[2], pointList[1], Color.cyan);
+                Debug.DrawLine(pointList[0], pointList[2], Color.cyan);
+                return true;
+            }
+
+        }
+        return false;
     }
+
+    private bool OinSimplex(Prism prismA,Prism prismB) {
+        if(pointList.Count == 2) {
+            // Check for actute angle
+            // if (dot(pointList[1], dir) < 0) {
+            //     return false;
+            // }
+            // AB.AO > 0
+            Debug.Log("Dot " + Vector3.Dot(pointList[0]-pointList[1],-pointList[1]));
+            if (Vector3.Dot(pointList[0]-pointList[1],-pointList[1]) > 0){
+                // AB x AO x AB
+                // Origin is in between A and B
+                dir = Vector3.Cross(Vector3.Cross(pointList[0]-pointList[1],-pointList[1]),pointList[0]-pointList[1]);
+                return false;
+            }
+            else {
+                // Debug.Log("Origin is towards A");
+                pointList.RemoveAt(0);
+                dir = - pointList[0];
+                return false;
+            }
+        }
+        else if(pointList.Count == 3) {
+            return triangle(prismA, prismB, dir);
+        }
+        return false;
+        // 3D : TODO
+        // else if(numofpointinsimplex == 3) {
+        //     return tetrahedron(prismA, prismB, dir);
+        // }
+    }
+
+
+    private bool triangle(Prism prismA,Prism prismB, Vector3 dir) {
+        var len = pointList.Count - 1;
+        Vector3 AO = -pointList[len];
+        Vector3 AB = pointList[len] - pointList[len-1] ;
+        Vector3 AC = pointList[len] - pointList[len-2] ;
+        
+        Vector3 ABC = cross(AB, AC);
+        Vector3 AB_ABC = cross(AB, ABC);
+        Vector3 ABC_AC = cross(ABC, AC);
+
+        if(dot(ABC_AC,AO) > 0 ){
+            if(dot(AC,AO) > 0) {
+                pointList.RemoveAt(1);
+                dir = cross(cross(AC,AO), AC);
+            }
+            else {
+                if(dot(AB,AO) > 0) {
+                pointList.RemoveAt(1);
+                dir = cross(cross(AC,AO), AC);
+                }
+                else {
+                    pointList.RemoveAt(0);
+                    pointList.RemoveAt(0);
+                    dir = AO;
+                }
+            }
+
+        } 
+        else if(dot(AB_ABC,AO) > 0 ){
+            if(dot(AB,AO) > 0) {
+                pointList.RemoveAt(0);
+                dir = cross(cross(AB,AO), AB);
+            }
+            else {
+                pointList.RemoveAt(0);
+                pointList.RemoveAt(0);
+                dir = AO;
+            }
+        }
+        else {
+            // TODO : Modify for 3D
+            return true;
+        }
+        return false;
+    }
+
+    // private bool tetrahedron(Prism prismA,Prism prismB, Vector3 dir) {
+        
+    // }
     
     #endregion
 
@@ -204,6 +330,20 @@ public class PrismManager : MonoBehaviour
     #endregion
 
     #region Utility Classes
+
+    private Vector3 getSupport(Prism a, Prism b, Vector3 direction ) {
+        Vector3 p1 = a.support(direction);
+        Vector3 p2 = b.support(-1*direction);
+        return (p1-p2);
+    }
+
+    private float dot(Vector3 a , Vector3 b) {
+        return (a.x * b.x + a.y*b.y + a.z*b.z);
+    }
+
+    private Vector3 cross(Vector3 a , Vector3 b) {
+        return new Vector3(a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x);
+    }
 
     private class PrismCollision
     {
