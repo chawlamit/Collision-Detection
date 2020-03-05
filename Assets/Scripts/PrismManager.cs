@@ -156,20 +156,11 @@ public class PrismManager : MonoBehaviour
         while(count < 10000) {
             count++;
             pointList.Add(getSupport(prismA, prismB, dir));
-            // Debug.Log("Point: "+ pointList[1] );
-            // Debug.DrawLine(pointList[0], pointList[1], Color.cyan);
             if (Vector3.Dot(pointList[pointList.Count - 1], dir) < 0) {
-                Debug.Log("On exit");
-                foreach (Vector3 p in pointList) {
-                    Debug.Log(p);
-                }
                 return false;
             }
 
             if(OinSimplex(prismA, prismB)) {
-                Debug.DrawLine(pointList[0], pointList[1], Color.cyan);
-                Debug.DrawLine(pointList[2], pointList[1], Color.cyan);
-                Debug.DrawLine(pointList[0], pointList[2], Color.cyan);
                 return true;
             }
 
@@ -179,12 +170,7 @@ public class PrismManager : MonoBehaviour
 
     private bool OinSimplex(Prism prismA,Prism prismB) {
         if(pointList.Count == 2) {
-            // Check for actute angle
-            // if (dot(pointList[1], dir) < 0) {
-            //     return false;
-            // }
             // AB.AO > 0
-            Debug.Log("Dot " + Vector3.Dot(pointList[0]-pointList[1],-pointList[1]));
             if (Vector3.Dot(pointList[0]-pointList[1],-pointList[1]) > 0){
                 // AB x AO x AB
                 // Origin is in between A and B
@@ -192,7 +178,6 @@ public class PrismManager : MonoBehaviour
                 return false;
             }
             else {
-                // Debug.Log("Origin is towards A");
                 pointList.RemoveAt(0);
                 dir = - pointList[0];
                 return false;
@@ -212,8 +197,8 @@ public class PrismManager : MonoBehaviour
     private bool triangle(Prism prismA,Prism prismB, Vector3 dir) {
         var len = pointList.Count - 1;
         Vector3 AO = -pointList[len];
-        Vector3 AB = pointList[len] - pointList[len-1] ;
-        Vector3 AC = pointList[len] - pointList[len-2] ;
+        Vector3 AB = pointList[len-1] - pointList[len] ;
+        Vector3 AC = pointList[len-2] - pointList[len] ;
         
         Vector3 ABC = cross(AB, AC);
         Vector3 AB_ABC = cross(AB, ABC);
@@ -221,8 +206,8 @@ public class PrismManager : MonoBehaviour
 
         if(dot(ABC_AC,AO) > 0 ){
             if(dot(AC,AO) > 0) {
-                pointList.RemoveAt(1);
                 dir = cross(cross(AC,AO), AC);
+                pointList.RemoveAt(1);
             }
             else {
                 if(dot(AB,AO) > 0) {
@@ -237,10 +222,10 @@ public class PrismManager : MonoBehaviour
             }
 
         } 
-        else if(dot(AB_ABC,AO) > 0 ){
+        else if(dot(AB_ABC,AO) > 0 ){ 
             if(dot(AB,AO) > 0) {
-                pointList.RemoveAt(0);
                 dir = cross(cross(AB,AO), AB);
+                pointList.RemoveAt(0);
             }
             else {
                 pointList.RemoveAt(0);
