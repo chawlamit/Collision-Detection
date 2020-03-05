@@ -292,7 +292,6 @@ public class PrismManager : MonoBehaviour
 
     private bool OinSimplex(Prism prismA,Prism prismB) {
         if(pointList.Count == 2) {
-            // AB.AO > 0
             if (Vector3.Dot(pointList[0]-pointList[1],-pointList[1]) > 0){
                 // AB x AO x AB
                 // Origin is in between A and B
@@ -333,8 +332,8 @@ public class PrismManager : MonoBehaviour
             }
             else {
                 if(dot(AB,AO) > 0) {
-                pointList.RemoveAt(1);
                 dir = cross(cross(AC,AO), AC);
+                pointList.RemoveAt(1);
                 }
                 else {
                     pointList.RemoveAt(0);
@@ -344,7 +343,7 @@ public class PrismManager : MonoBehaviour
             }
 
         } 
-        else if(dot(AB_ABC,AO) > 0 ){ 
+        else if(dot(AB_ABC,AO) > 0 ){
             if(dot(AB,AO) > 0) {
                 dir = cross(cross(AB,AO), AB);
                 pointList.RemoveAt(0);
