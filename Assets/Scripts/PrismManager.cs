@@ -12,7 +12,6 @@ public class PrismManager : MonoBehaviour
     public float maxPrismScaleY = 5;
     public GameObject regularPrismPrefab;
     public GameObject irregularPrismPrefab;
-    private Bounds _bound;
     private List<Tuple<float, char, Prism>> _axisPointsX = new List<Tuple<float, char, Prism>>();
     private List<Prism> prisms = new List<Prism>();
     private List<GameObject> prismObjects = new List<GameObject>();
