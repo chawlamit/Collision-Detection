@@ -257,17 +257,36 @@ public class PrismManager : MonoBehaviour
 
     private Vector3 EPA(Prism prismA, Prism prismB)
     {
-        // 1. Find the side of simplex closet to the origin
         var n = pointList.Count();
+        var dim = n-1; // 2d or 3d
+
+        // scaling the penetration depth slighly to completely resolve the collision
+        var scale = 1.01f;
+
+        if (dim == 2) //2d
+        {
+            return EPA_2D(prismA, prismB) * scale;
+        }
+        else //3d
+        {
+            return EPA_3d(prismA, prismB) * scale;
+        }
+        
+    }
+    private Vector3 EPA_2D(Prism prismA, Prism prismB)
+    {
+        var n = pointList.Count();
+        
         var minDist = float.MaxValue;
         var prevDist = 0f;
+        
         Tuple<Vector3, Vector3> closestSide = null;
         Vector3 support = Vector3.zero;
         var normal = Vector3.zero;
-                
+
         List<Tuple<Vector3, Vector3>> simplex = new List<Tuple<Vector3, Vector3>>();
 
-
+        
         for (var i = 0; i < n; i++)
         {
             simplex.Add(new Tuple<Vector3, Vector3>(pointList[i], pointList[(i + 1) % n]));
@@ -278,7 +297,6 @@ public class PrismManager : MonoBehaviour
             // DrawSimplex(simplex);
             prevDist = minDist;
 
-            // List<Ray> toAdd = new List<Ray>();
             foreach (var side in simplex)
             {
                 float distanceFromOrigin = Vector3.Cross(side.Item2 - side.Item1, -side.Item1).magnitude;
@@ -307,7 +325,63 @@ public class PrismManager : MonoBehaviour
             
         }
         // Debug.DrawLine(Vector3.zero, support, Color.yellow,UPDATE_RATE);
-        return support * 1.05f;
+        return support;
+    }
+
+    private Vector3 EPA_3d(Prism prismA, Prism prismB)
+    {
+        var n = pointList.Count();
+        var minDist = float.MaxValue;
+        var prevDist = 0f;
+        
+        Tuple<Vector3, Vector3, Vector3> closestPlane = null;
+        Vector3 support = Vector3.zero;
+        var normal = Vector3.zero;
+
+        List<Tuple<Vector3, Vector3, Vector3>> simplex = new List<Tuple<Vector3, Vector3, Vector3>>();
+        for (var i = 0; i < n; i++)
+        {
+            for (var j = i+1; j < n; j++)
+            {
+                for (var k = j + 1; j < n; j++)
+                {
+                    simplex.Add(new Tuple<Vector3, Vector3, Vector3>(pointList[i], pointList[j], pointList[k]));
+                }
+            }
+        }
+        
+        while (Mathf.Abs(prevDist - minDist) > 0.01f)
+        {
+            // DrawSimplex(simplex);
+            prevDist = minDist;
+
+            foreach (var plane in simplex)
+            {
+                // normal to the plane
+                normal = Vector3.Cross(plane.Item2 - plane.Item1, plane.Item3 - plane.Item1).normalized;
+                // projecttion of AO vector on this normal is the distance of Origin from the plane)
+                float distanceFromOrigin = Vector3.Dot(normal, -plane.Item1);
+                
+                if (distanceFromOrigin < minDist)
+                {
+                    minDist = distanceFromOrigin;
+                    closestPlane = plane;
+                }
+            }
+
+            // find normal to this vector in the outward direction (away from origin)
+            normal = -normal;
+            // find support point on minkowski in the direction of this normal vector
+            support = getSupport(prismA, prismB, normal);
+            
+            // remove this plane and 3 more to the list
+            simplex.Remove(closestPlane);
+            simplex.Add(new Tuple<Vector3, Vector3, Vector3>(closestPlane.Item1, closestPlane.Item2, support ));
+            simplex.Add(new Tuple<Vector3, Vector3, Vector3>(closestPlane.Item1, closestPlane.Item3, support ));
+            simplex.Add(new Tuple<Vector3, Vector3, Vector3>(closestPlane.Item2, closestPlane.Item3, support ));
+        }
+        
+        return support;
     }
 
     private void DrawSimplex(List<Tuple<Vector3, Vector3>> simplex)
