@@ -230,31 +230,6 @@ public class PrismManager : MonoBehaviour
         return colliding;
     }
 
-    private bool GJK(Prism prismA, Prism prismB)
-    {
-        pointList = new List<Vector3>();
-        // Start at a random point
-        dir = new Vector3(1,0,1);
-        pointList.Add(getSupport(prismA, prismB, dir)); 
-
-        dir = -pointList[0] ;
-
-        var count = 0;
-        while(count < 10000) {
-            count++;
-            pointList.Add(getSupport(prismA, prismB, dir));
-            if (Vector3.Dot(pointList[pointList.Count - 1], dir) < 0) {
-                return false;
-            }
-
-            if(OinSimplex(prismA, prismB)) {
-                return true;
-            }
-
-        }
-        return false;
-    }
-
     private Vector3 EPA(Prism prismA, Prism prismB)
     {
         var n = pointList.Count();
@@ -391,59 +366,67 @@ public class PrismManager : MonoBehaviour
             Debug.DrawLine(side.Item1, side.Item2, Color.blue, UPDATE_RATE);
         }
     }
-
-    private Vector3 Support(List<Vector3> points, Vector3 dir)
-    {
-        var maxProjection = float.MinValue;
-        Vector3 support = Vector3.zero;
-        ;
-        foreach (var p in points)
-        {
-            var dist = Vector3.Dot(p, dir);
-            if (dist > maxProjection)
-            {
-                maxProjection = dist;
-                support = p;
-            }
-        }
-
-        return support;
-    }
     
-    private bool OinSimplex(Prism prismA,Prism prismB) {
-        if(pointList.Count == 2) {
-            if (Vector3.Dot(pointList[0]-pointList[1],-pointList[1]) > 0){
-                // AB x AO x AB
-                // Origin is in between A and B
-                dir = Vector3.Cross(Vector3.Cross(pointList[0]-pointList[1],-pointList[1]),pointList[0]-pointList[1]);
+    private bool GJK(Prism prismA, Prism prismB)
+    {
+        pointList = new List<Vector3>();
+        // Start at a random point
+        dir = new Vector3(0,0,0);
+        pointList.Add(getSupport(prismA, prismB, dir)); 
+
+        dir = -pointList[0] ;
+        var count = 0;
+        while(count < 1000)
+        {
+            count++;
+            pointList.Add(getSupport(prismA, prismB, dir));
+            if (Vector3.Dot(pointList[pointList.Count - 1], dir) < 0)
+            {
                 return false;
             }
-            else {
-                pointList.RemoveAt(0);
-                dir = - pointList[0];
-                return false;
+
+            if(OinSimplex(prismA, prismB)) {
+                return true;
             }
-        }
-        else if(pointList.Count == 3) {
-            return triangle(prismA, prismB, dir);
+
         }
         return false;
-        // 3D : TODO
-        // else if(numofpointinsimplex == 3) {
-        //     return tetrahedron(prismA, prismB, dir);
-        // }
+    }
+
+    private bool OinSimplex(Prism prismA,Prism prismB) {
+        switch (pointList.Count)
+        {
+            case 2 :
+                if (Vector3.Dot(pointList[0]-pointList[1],-pointList[1]) > 0){
+                    // AB x AO x AB
+                    // Origin is in between A and B
+                    dir = Vector3.Cross(Vector3.Cross(pointList[0]-pointList[1],-pointList[1]),pointList[0]-pointList[1]);
+                    return false;
+                }
+                else {
+                    pointList.RemoveAt(0);
+                    dir = - pointList[0];
+                    return false;
+                }
+            case 3 :
+                return triangle(prismA, prismB, dir);
+            case 4 :
+                return tetrahedron(prismA, prismB, dir);
+            default:
+                return false;
+        }
     }
 
 
     private bool triangle(Prism prismA,Prism prismB, Vector3 dir) {
         var len = pointList.Count - 1;
-        Vector3 AO = -pointList[len];
-        Vector3 AB = pointList[len-1] - pointList[len] ;
-        Vector3 AC = pointList[len-2] - pointList[len] ;
+        var AO = -pointList[len];
+        var AB = pointList[len-1] - pointList[len] ;
+        var AC = pointList[len-2] - pointList[len] ;
         
-        Vector3 ABC = cross(AB, AC);
-        Vector3 AB_ABC = cross(AB, ABC);
-        Vector3 ABC_AC = cross(ABC, AC);
+        var ABC = cross(AB, AC);
+        var AB_ABC = cross(AB, ABC);
+        var ABC_AC = cross(ABC, AC);
 
         if(dot(ABC_AC,AO) > 0 ){
             if(dot(AC,AO) > 0) {
@@ -451,9 +434,9 @@ public class PrismManager : MonoBehaviour
                 pointList.RemoveAt(1);
             }
             else {
-                if(dot(AB,AO) > 0) {
-                dir = cross(cross(AC,AO), AC);
-                pointList.RemoveAt(1);
+                if(dot(AB,AO) > 0) { 
+                    dir = cross(cross(AC,AO), AC);
+                    pointList.RemoveAt(1);
                 }
                 else {
                     pointList.RemoveAt(0);
@@ -476,14 +459,55 @@ public class PrismManager : MonoBehaviour
         }
         else {
             // TODO : Modify for 3D
-            return true;
+            // return true;
+
+            if (Vector3.Dot(ABC, AO) > 0)
+            {
+                dir = ABC;
+            }
+            else
+            {
+                dir = -ABC;
+            }
         }
         return false;
     }
 
-    // private bool tetrahedron(Prism prismA,Prism prismB, Vector3 dir) {
-        
-    // }
+    private bool tetrahedron(Prism prismA, Prism prismB, Vector3 dir)
+    {
+        var len = pointList.Count - 1;
+        var AO = -pointList[len];
+        var AB = pointList[len - 1] - pointList[len];
+        var AC = pointList[len - 2] - pointList[len];
+        var AD = pointList[len - 3] - pointList[len];
+
+        var ABC = Vector3.Cross(AB, AC);
+        var ACD = Vector3.Cross(AC, AD);
+        var ABD = Vector3.Cross(AB, AD);
+
+
+
+        if (Vector3.Dot(ABC, AO) > 0)
+        {
+            pointList.RemoveAt(0);
+            return false;
+        }
+        else if (Vector3.Dot(ACD, AO) > 0)
+        {
+            pointList.RemoveAt(2);
+            return false;
+        }
+        else if (Vector3.Dot(ABD,AO)>0)
+        {
+            pointList.RemoveAt(1);
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+
+    }
     
     #endregion
 
