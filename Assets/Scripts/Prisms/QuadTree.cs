@@ -66,16 +66,16 @@ public class QuadTree : MonoBehaviour
             prismObjects.Add(prism);
             prismColliding.Add(prismScript, false);
         }
-        //Change the board shape
-        _quad = new QuadTree(0, new rectangle(0, 0, 600, 600));
-         renderers = prismParent.GetComponentsInChildren<Renderer>();
-        
+        //get the board shape
+        _quad = new QuadTree(0, new rectangle(0, 0, 100, 100));
+        renderers = prismParent.GetComponentsInChildren<Renderer>();
+
         _quad.clear();
         for (int i = 0; i < renderers.Length; i++)
         {
             float w = renderers[i].bounds.center.x - renderers[i].bounds.min.x;
             float h = renderers[i].bounds.center.z - renderers[i].bounds.min.z;
-            _quad.insert(new rectangle(renderers[i].bounds.min.x,renderers[i].bounds.min.z,w,h));
+            _quad.insert(new rectangle(renderers[i].bounds.min.x, renderers[i].bounds.min.z, w, h));
             rectList.Add(new rectangle(renderers[i].bounds.min.x, renderers[i].bounds.min.z, w, h));
         }
 
@@ -85,7 +85,7 @@ public class QuadTree : MonoBehaviour
     void Update()
     {
         #region Visualization
-        
+
         DrawPrismRegion();
         DrawPrismWireFrames();
 
@@ -427,12 +427,13 @@ public class QuadTree : MonoBehaviour
     #endregion
 
     #region QuadTree methods
-    public QuadTree(int pLevel, rectangle pBounds)
+    public QuadTree(int lev, rectangle rec)
     {
-        level = pLevel;
-        QuadObjects = new List<rectangle>();
-        bounds = pBounds;
         subnodes = new QuadTree[4];
+        level = lev;
+        QuadObjects = new List<rectangle>();
+        bounds = rec;
+
     }
     //Clear the Quadtree
     public void clear()
@@ -451,10 +452,10 @@ public class QuadTree : MonoBehaviour
 
     private void split()
     {
-        int subWidth = (int)(bounds.width / 2);
-        int subHeight = (int)(bounds.height / 2);
-        int x = (int)bounds.x;
-        int z = (int)bounds.z;
+        float subWidth = bounds.width / 2;
+        float subHeight = bounds.height / 2;
+        float x = bounds.x;
+        float z = bounds.z;
 
         subnodes[0] = new QuadTree(level + 1, new rectangle(x + subWidth, z, subWidth, subHeight));
         subnodes[1] = new QuadTree(level + 1, new rectangle(x, z, subWidth, subHeight));
@@ -462,21 +463,21 @@ public class QuadTree : MonoBehaviour
         subnodes[3] = new QuadTree(level + 1, new rectangle(x + subWidth, z + subHeight, subWidth, subHeight));
     }
 
-    public void insert(rectangle pRect)
+    public void insert(rectangle rec)
     {
         if (subnodes[0] != null)
         {
-            int index = getIndex(pRect);
+            int index = getIndex(rec);
 
             if (index != -1)
             {
-                subnodes[index].insert(pRect);
+                subnodes[index].insert(rec);
 
                 return;
             }
         }
 
-        QuadObjects.Add(pRect);
+        QuadObjects.Add(rec);
 
         if (QuadObjects.Count > _maxAllowed)
         {
@@ -502,19 +503,19 @@ public class QuadTree : MonoBehaviour
         }
     }
 
-    private int getIndex(rectangle pRect)
+    private int getIndex(rectangle rec)
     {
         int index = -1;
         float verticalMidpoint = bounds.x + (bounds.width / 2);
         float horizontalMidpoint = bounds.z + (bounds.height / 2);
 
-        // Object can completely fit within the top quadrants
-        bool topQuadrant = (pRect.z < horizontalMidpoint && pRect.z + pRect.height < horizontalMidpoint);
-        // Object can completely fit within the bottom quadrants
-        bool bottomQuadrant = (pRect.z > horizontalMidpoint);
+        // Shape can completely fit in top quadrants
+        bool topQuadrant = (rec.z < horizontalMidpoint && rec.z + rec.height < horizontalMidpoint);
+        // Shape can completely fit in bottom quadrants
+        bool bottomQuadrant = (rec.z > horizontalMidpoint);
 
         // Object can completely fit within the left quadrants
-        if (pRect.x < verticalMidpoint && pRect.x + pRect.width < verticalMidpoint)
+        if (rec.x < verticalMidpoint && rec.x + rec.width < verticalMidpoint)
         {
             if (topQuadrant)
             {
@@ -526,7 +527,7 @@ public class QuadTree : MonoBehaviour
             }
         }
         // Object can completely fit within the right quadrants
-        else if (pRect.x > verticalMidpoint)
+        else if (rec.x > verticalMidpoint)
         {
             if (topQuadrant)
             {
@@ -541,13 +542,13 @@ public class QuadTree : MonoBehaviour
         return index;
     }
 
-    public List<rectangle> retrieve(rectangle pRect)
+    public List<rectangle> retrieve(rectangle rec)
     {
         var collisionRect = new List<rectangle>();
-        int index = getIndex(pRect);
+        int index = getIndex(rec);
         if (index != -1 && subnodes[0] != null)
         {
-            subnodes[index].retrieve(pRect);
+            subnodes[index].retrieve(rec);
         }
 
         collisionRect.AddRange(rectList);
