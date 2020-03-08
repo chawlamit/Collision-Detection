@@ -18,7 +18,6 @@ public class PrismManager : MonoBehaviour
     public float maxPrismScaleY = 5;
     public GameObject regularPrismPrefab;
     public GameObject irregularPrismPrefab;
-    private Bounds _bound;
     private List<Tuple<float, char, Prism>> _axisPointsX = new List<Tuple<float, char, Prism>>();
     private List<Prism> prisms = new List<Prism>();
     private List<GameObject> prismObjects = new List<GameObject>();
@@ -73,8 +72,6 @@ public class PrismManager : MonoBehaviour
         {
             for (int i = 0, len = renderers.Length; i < len; i++)
             {
-                _bound.Encapsulate(renderers[i].bounds);
-
                 _axisPointsX.Add(new Tuple<float, char, Prism>(renderers[i].bounds.min.x, 's', renderers[i].GetComponent<Prism>()));
                 _axisPointsX.Add(new Tuple<float, char, Prism>(renderers[i].bounds.max.x, 'e', renderers[i].GetComponent<Prism>()));
             }
@@ -136,14 +133,17 @@ public class PrismManager : MonoBehaviour
     private IEnumerable<PrismCollision> PotentialCollisions()
     {
         var olx = collisionAlongX();
-        //Debug.Log(olx.Count);
+        foreach(var checkPrisms in collisionAlongZ(olx))
+        {
+            yield return checkPrisms;
+        }
 
-        return collisionAlongZ(olx);
+        yield break;
 
     }
     private List<PrismCollision> collisionAlongZ(List<PrismCollision> olx)
     {
-        var outputListY = new List<PrismCollision>();
+        var outputListZ = new List<PrismCollision>();
         for (int i = 0; i < olx.Count; i++)
         {
             var renderers = new List<Renderer>();
@@ -159,69 +159,14 @@ public class PrismManager : MonoBehaviour
             float bz2 = renderers[1].bounds.max.z;
             float d1z = bz1 - az2;
             float d2z = az1 - bz2;
-            //Debug.Log("az1" + az1 + "bz1" + bz1 + "az2" + az2 + "bz2");
+
             if (d1z < 0 && d2z < 0)
             {
-                outputListY.Add(olx1);
+                outputListZ.Add(olx1);
             }
         }
-        // Debug.Log(outputListY.Count);
-        return outputListY;
-        /*   
-               var temp = new List<Prism>();
-               for (int i = 0; i < olx.Count; i++)
-               {
-                   var olx1 = olx[i];
-                   temp.Add(olx1.a);
-                   temp.Add(olx1.b);
-
-               }
-               var renderers = new List<Renderer>();
-               var _axisPointsY = new List<Tuple<float, char, Prism>>();
-               var _activeListY = new List<Prism>();
-               var outputListY = new List<PrismCollision>();
-               for (int i = 0; i < temp.Count; i++)
-               {
-                   renderers.Add(temp[i].GetComponent<Renderer>());
-               }
-
-               if (renderers.Count > 0)
-               {
-                   for (int i = 0, len = renderers.Count; i < len; i++)
-                   {
-                       bound.Encapsulate(renderers[i].bounds);
-                       _axisPointsY.Add(new Tuple<float, char, Prism>(renderers[i].bounds.min.y, 's', renderers[i].GetComponent<Prism>()));
-                       _axisPointsY.Add(new Tuple<float, char, Prism>(renderers[i].bounds.max.y, 'e', renderers[i].GetComponent<Prism>()));
-                   }
-               }
-               _axisPointsY.Sort((a, b) => a.Item1.CompareTo(b.Item1));
-
-
-               for (int i = 0; i < _axisPointsY.Count; i++)
-               {
-                   if (_axisPointsY[i].Item2 == 's')
-                   {
-                       _activeListY.Add(_axisPointsY[i].Item3);
-                       for (int j = 0; j < _activeListY.Count - 1; j++)
-                       {
-                           var checkPrisms = new PrismCollision();
-                           checkPrisms.a = _axisPointsY[i].Item3;
-                           checkPrisms.b = _activeListY[j];
-                           outputListY.Add(checkPrisms);
-                       }
-
-
-                   }
-                   else if (_axisPointsY[i].Item2 == 'e')
-                   {
-                       _activeListY.Remove(_axisPointsY[i].Item3);
-                   }
-
-               }
-               Debug.Log(outputListY.Count);
-               return outputListY;
-
-           }*/
+        
+    return outputListZ;
     }
 
     private List<PrismCollision> collisionAlongX()
