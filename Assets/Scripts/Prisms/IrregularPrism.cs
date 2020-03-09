@@ -12,6 +12,8 @@ public class IrregularPrism : Prism
         points = Enumerable.Range(0, pointCount).Select(i => Random.value).OrderBy(i => i).Select(theta => Quaternion.AngleAxis(360f * theta, Vector3.up) * Vector3.forward * 0.5f).ToArray();
         midY = 0;
         height = 2;
+        
+        CalculateBounds();
     }
     
 }

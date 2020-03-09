@@ -14,6 +14,8 @@ public class RegularPrism : Prism
         points = points.Select(p => transform.position + Quaternion.AngleAxis(transform.eulerAngles.y, Vector3.up) * new Vector3(p.x * transform.localScale.x, 0, p.z * transform.localScale.z)).ToArray();
         midY = 0;
         height = 2;
+        
+        CalculateBounds();
     }
     
 }
