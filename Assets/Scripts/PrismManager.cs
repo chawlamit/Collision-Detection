@@ -8,6 +8,7 @@ using Quaternion = UnityEngine.Quaternion;
 using Random = UnityEngine.Random;
 using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
+using System.Linq;
 
 public class PrismManager : MonoBehaviour
 {
@@ -133,7 +134,8 @@ public class PrismManager : MonoBehaviour
     private IEnumerable<PrismCollision> PotentialCollisions()
     {
         var olx = collisionAlongX();
-        foreach(var checkPrisms in collisionAlongZ(olx))
+        List<PrismCollision> l = collisionAlongZ(olx);
+        foreach(var checkPrisms in l)
         {
             yield return checkPrisms;
         }
@@ -217,7 +219,28 @@ public class PrismManager : MonoBehaviour
         //     Debug.DrawLine(minkowski[i], minkowski[i] + new Vector3(0.0f, 0f, 0.05f), Color.magenta, UPDATE_RATE);
         // }
 
-        bool colliding = GJK(prismA, prismB); 
+        bool colliding = GJK(prismA, prismB);
+
+        // remove duplicates from pointList        
+        HashSet<String> p_str = new HashSet<string>();
+        List<Vector3> toDelete = new List<Vector3>();
+        foreach (var p in pointList)
+        {
+            String s = p.ToString();
+            if (p_str.Contains(s))
+            {
+                toDelete.Add(p);
+            }
+            else
+            {
+                p_str.Add(s);
+            }
+        }
+        foreach (var p in toDelete)
+        {
+            pointList.Remove(p);
+        }
+        
         if (colliding)
         {   
             collision.penetrationDepthVectorAB = EPA(prismA, prismB);
@@ -232,13 +255,11 @@ public class PrismManager : MonoBehaviour
 
     private Vector3 EPA(Prism prismA, Prism prismB)
     {
-        var n = pointList.Count();
-        var dim = n-1; // 2d or 3d
 
         // scaling the penetration depth slighly to completely resolve the collision
         var scale = 1.01f;
 
-        if (dim == 2) //2d
+        if (maxPrismScaleY == 0) //2d
         {
             return EPA_2D(prismA, prismB) * scale;
         }
@@ -318,7 +339,7 @@ public class PrismManager : MonoBehaviour
         {
             for (var j = i+1; j < n; j++)
             {
-                for (var k = j + 1; j < n; j++)
+                for (var k = j + 1; k < n; k++)
                 {
                     simplex.Add(new Tuple<Vector3, Vector3, Vector3>(pointList[i], pointList[j], pointList[k]));
                 }
