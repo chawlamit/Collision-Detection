@@ -13,6 +13,7 @@ public class IrregularPrism : Prism
         midY = 0;
         height = 2;
         
+        create3d();
         CalculateBounds();
     }
     

@@ -11,6 +11,7 @@ public class TriPrism : Prism
         points = new Vector3[] { new Vector3(9.2f / 2, 0, 0), new Vector3(-9.2f / 2, 0, 0), new Vector3(0, 0, 7.98f) };
         midY = 0;
         height = 9.709259f;
+        create3d();
     }
     
     void Update()

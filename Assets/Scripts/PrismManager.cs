@@ -9,6 +9,7 @@ using Random = UnityEngine.Random;
 using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
 using System.Linq;
+using UnityEditor;
 
 public class PrismManager : MonoBehaviour
 {
@@ -29,8 +30,11 @@ public class PrismManager : MonoBehaviour
     private int numofpointinsimplex=0;
     private List<Vector3> pointList = new List<Vector3>();
     private Vector3 dir;
+    private int c = 0;
 
+    private QuadTree _root;
     #region Unity Functions
+
 
     void Start()
     {
@@ -39,7 +43,7 @@ public class PrismManager : MonoBehaviour
         prismParent = GameObject.Find("Prisms");
         for (int i = 0; i < prismCount; i++)
         {
-            var randPointCount = Mathf.RoundToInt(3 + Random.value * 7);
+            var randPointCount = Mathf.RoundToInt(3 + Random.value * 1);
             var randYRot = Random.value * 360;
             var randScale = new Vector3((Random.value - 0.5f) * 2 * maxPrismScaleXZ, (Random.value - 0.5f) * 2 * maxPrismScaleY, (Random.value - 0.5f) * 2 * maxPrismScaleXZ);
             var randPos = new Vector3((Random.value - 0.5f) * 2 * prismRegionRadiusXZ, (Random.value - 0.5f) * 2 * prismRegionRadiusY, (Random.value - 0.5f) * 2 * prismRegionRadiusXZ);
@@ -66,7 +70,11 @@ public class PrismManager : MonoBehaviour
             prismObjects.Add(prism);
             prismColliding.Add(prismScript, false);
         }
+        
+        // region quadTree
 
+        // _root = gameObject.AddComponent<QuadTree>();
+        
         StartCoroutine(Run());
     }
     
@@ -97,6 +105,7 @@ public class PrismManager : MonoBehaviour
             {
                 prism.CalculateBounds();
                 prismColliding[prism] = false;
+                prism.check = false;
             }
             // Broad Phase
             foreach (var collision in PotentialCollisions())
@@ -141,9 +150,9 @@ public class PrismManager : MonoBehaviour
             {
                 for (int j = 0; j < _activeList.Count; j++)
                 {
-                    var checkPrisms = new PrismCollision();
-                    checkPrisms.a = _axisPointsX[i].Item3;
-                    checkPrisms.b = _activeList[j];
+                    var checkPrisms = new PrismCollision(_axisPointsX[i].Item3, _activeList[j]);
+                    // checkPrisms.a = _axisPointsX[i].Item3;
+                    // checkPrisms.b = _activeList[j];
                     outputListX.Add(checkPrisms);
                 }
                 _activeList.Add(_axisPointsX[i].Item3);
@@ -154,24 +163,53 @@ public class PrismManager : MonoBehaviour
             }
 
         }
-        Debug.Log(outputListX.Count);
+        // Debug.Log(outputListX.Count);
         return outputListX;
         
     }
 
     private IEnumerable<PrismCollision> PotentialCollisions()
     {
-        var olx = collisionAlongX();
-        List<PrismCollision> l = collisionAlongZ(olx);
-        Debug.Log(l.Count());
-
+        // Sort and Sweep
+        List<PrismCollision> l = SortAndSweep();
         foreach(var checkPrisms in l)
         {
             yield return checkPrisms;
         }
-
+        
+        
+        // QuadTree
+        // if (_root == null)
+        // {
+        // _root = new QuadTree(0, new rectangle(new Vector3(-prismRegionRadiusXZ, 0f, -prismRegionRadiusXZ), new Vector3(prismRegionRadiusXZ, 0f, prismRegionRadiusXZ)));
+        // foreach (var prism in prisms)
+        // {
+        //     _root.insert(prism);
+        // }
+        // // }
+        //
+        // List<PrismCollision> l = new List<PrismCollision>();
+        // foreach (var prism in prisms)
+        // {
+        //     List<Prism> siblings = _root.retrieve(prism);
+        //     foreach (var prism2 in siblings)
+        //     {
+        //         var collision = new PrismCollision(prism, prism2);
+        //         if ((prism2 != prism) && !l.Contains(collision))
+        //         {
+        //             l.Add(collision);
+        //             yield return collision;
+        //         }
+        //     }
+        // }
+        // Debug.Log(l.Count);
         yield break;
+    }
 
+    private List<PrismCollision> SortAndSweep()
+    {
+        var olx = collisionAlongX();
+        return collisionAlongZ(olx);
     }
 
     private List<PrismCollision> collisionAlongZ(List<PrismCollision> olx)
@@ -202,20 +240,35 @@ public class PrismManager : MonoBehaviour
     {
         var prismA = collision.a;
         var prismB = collision.b;
+        // prismA.check = true;
+        // prismB.check = true;
         
-        List<Vector3> minkowski = new List<Vector3>();
-        foreach(var p in prismA.points){
-            foreach(var p2 in prismB.points){
-                minkowski.Add( p - p2);
-            }
-        }
+        //
+        // Debug.Log("Points in prism A");
+        // foreach (var VARIABLE in prismA.points3D)
+        // {    
+        //     Debug.Log(VARIABLE);
+        // }
+        //
+        // Debug.Log("Points in prism B");
+        // foreach (var VARIABLE in prismB.points3D)
+        // {    
+        //     Debug.Log(VARIABLE);
+        // }
+        
+        // List<Vector3> minkowski = new List<Vector3>();
+        // foreach(var p in prismA.points){
+        //     foreach(var p2 in prismB.points){
+        //         minkowski.Add( p - p2);
+        //     }
+        // }
         
         // draw the minkowski
         // for (var i = 0; i < minkowski.Count(); i++)
         // {
         //     Debug.DrawLine(minkowski[i], minkowski[i] + new Vector3(0.0f, 0f, 0.05f), Color.magenta, UPDATE_RATE);
         // }
-
+        
         bool colliding = GJK(prismA, prismB);
 
         // remove duplicates from pointList        
@@ -250,23 +303,25 @@ public class PrismManager : MonoBehaviour
         return colliding;
     }
 
+    #region GJK
     
     private bool GJK(Prism prismA, Prism prismB)
     {
         pointList = new List<Vector3>();
         // Start at a random point
-        dir = new Vector3(0,0,0);
+        dir = new Vector3(1,1,1);
         pointList.Add(getSupport(prismA, prismB, dir)); 
 
         dir = -pointList[0] ;
         var count = 0;
-        while(count < 1000)
+        while(count < 50)
         {
             count++;
             pointList.Add(getSupport(prismA, prismB, dir));
+            
             if (Vector3.Dot(pointList[pointList.Count - 1], dir) < 0)
             {
-                return false;
+                pointList.Clear();
             }
 
             if(OinSimplex(prismA, prismB)) {
@@ -294,8 +349,8 @@ public class PrismManager : MonoBehaviour
                 }
             case 3 :
                 return triangle(prismA, prismB);
-            // case 4 :
-            //     return tetrahedron(prismA, prismB, dir);
+            case 4 :
+                return tetrahedron(prismA, prismB);
             default:
                 return false;
         }
@@ -342,63 +397,71 @@ public class PrismManager : MonoBehaviour
             }
         }
         else {
-            // TODO : Modify for 3D
-            return true;
 
-            // if (Vector3.Dot(ABC, AO) > 0)
-            // {
-            //     dir = ABC;
-            // }
-            // else
-            // {
-            //     dir = -ABC;
-            // }
+            if (Vector3.Dot(ABC, AO) > 0)
+            {
+                dir = ABC;
+            }
+            else
+            {
+                var temp = pointList[0];
+                pointList[0] = pointList[1];
+                pointList[1] = temp;
+                dir = -ABC;
+            }
         }
+        
         return false;
     }
 
-    // private bool tetrahedron(Prism prismA, Prism prismB, Vector3 dir)
-    // {
-    //     var len = pointList.Count - 1;
-    //     var AO = -pointList[len];
-    //     var AB = pointList[len - 1] - pointList[len];
-    //     var AC = pointList[len - 2] - pointList[len];
-    //     var AD = pointList[len - 3] - pointList[len];
-    //
-    //     var ABC = Vector3.Cross(AB, AC);
-    //     var ACD = Vector3.Cross(AC, AD);
-    //     var ABD = Vector3.Cross(AB, AD);
-    //
-    //
-    //
-    //     if (Vector3.Dot(ABC, AO) > 0)
-    //     {
-    //         pointList.RemoveAt(0);
-    //         return false;
-    //     }
-    //     else if (Vector3.Dot(ACD, AO) > 0)
-    //     {
-    //         pointList.RemoveAt(2);
-    //         return false;
-    //     }
-    //     else if (Vector3.Dot(ABD,AO)>0)
-    //     {
-    //         pointList.RemoveAt(1);
-    //         return false;
-    //     }
-    //     else
-    //     {
-    //         return true;
-    //     }
-    //
-    // }
+    private bool tetrahedron(Prism prismA, Prism prismB)
+    {
+        var len = pointList.Count - 1;
+        var AO = -pointList[len];
+        var AB = pointList[len - 1] - pointList[len];
+        var AC = pointList[len - 2] - pointList[len];
+        var AD = pointList[len - 3] - pointList[len];
+
+        var ABC = cross(AB, AC);
+        var ACD = cross(AC, AD);
+        var ADB = cross(AD, AB);
+        
+        if (dot(ABC, AO) > 0)
+        {
+            pointList.RemoveAt(0);
+            dir = ABC;
+            return false;
+        }
+        else if (dot(ACD, AO) > 0)
+        {
+            pointList.RemoveAt(2);
+            dir = ACD;
+            return false;
+        }
+        else if (dot(ADB,AO) > 0)
+        {
+            pointList.RemoveAt(1);
+            dir = ADB;
+            return false;
+        }
+        else
+        {
+            return true;
+            
+        }
+
+    }
+
     
+    #endregion
     
-        private Vector3 EPA(Prism prismA, Prism prismB)
+    #region EPA
+    
+    private Vector3 EPA(Prism prismA, Prism prismB)
     {
 
         // scaling the penetration depth slighly to completely resolve the collision
-        var scale = 1.01f;
+        var scale = 1.05f;
 
         if (maxPrismScaleY == 0) //2d
         {
@@ -406,7 +469,9 @@ public class PrismManager : MonoBehaviour
         }
         else //3d
         {
-            return EPA_3d(prismA, prismB) * scale;
+            var eparet = EPA_3d(prismA, prismB) * scale; 
+            Debug.DrawLine(eparet, Vector3.zero,Color.red,UPDATE_RATE);
+            return eparet;
         }
         
     }
@@ -433,7 +498,6 @@ public class PrismManager : MonoBehaviour
         {
             // DrawSimplex(simplex);
             prevDist = minDist;
-
             foreach (var side in simplex)
             {
                 float distanceFromOrigin = Vector3.Cross(side.Item2 - side.Item1, -side.Item1).magnitude;
@@ -520,12 +584,38 @@ public class PrismManager : MonoBehaviour
         
         return support;
     }
-
-    private void DrawSimplex(List<Tuple<Vector3, Vector3>> simplex)
+    
+    #endregion
+    private void DrawSimplex(List<Vector3> simplex)
     {
-        foreach (var side in simplex)
+        // foreach (var side in simplex)
+        // {
+        //     Debug.DrawLine(side.Item1, side.Item2, Color.blue, UPDATE_RATE);
+        // }
+        
+        var s = new Vector3(0,0,0);
+        var e = new Vector3(0,1,0);
+        Debug.DrawLine(s,e,Color.yellow,UPDATE_RATE);
+        Debug.Log("Numober of points:" + simplex.Count);
+        c++;
+        var colort = Color.yellow;
+        // if (c % 3 == 0)
+        // {
+        //     colort = Color.yellow;
+        // }
+        // else if (c % 3 == 1)
+        // {
+        //     colort = Color.black;
+        // }
+        // else
+        // {
+        //     colort = Color.red;
+        // }
+        
+
+        for(var i=0; i<simplex.Count; i++)
         {
-            Debug.DrawLine(side.Item1, side.Item2, Color.blue, UPDATE_RATE);
+            Debug.DrawLine(simplex[i], simplex[(i+1) % simplex.Count],colort,UPDATE_RATE);
         }
     }
     #endregion
@@ -583,12 +673,19 @@ public class PrismManager : MonoBehaviour
         {
             var prism = prisms[prismIndex];
             var prismTransform = prismObjects[prismIndex].transform;
-
+            prism.create3d();
+            
             var yMin = prism.midY - prism.height / 2 * prismTransform.localScale.y;
             var yMax = prism.midY + prism.height / 2 * prismTransform.localScale.y;
-
-            var wireFrameColor = prismColliding[prisms[prismIndex]] ? Color.red : Color.green;
-
+            var wireFrameColor = new Color();
+            if (prism.check)
+            {
+                wireFrameColor = prismColliding[prisms[prismIndex]] ? Color.magenta : Color.blue;;
+            }
+            else 
+            {
+                wireFrameColor = prismColliding[prisms[prismIndex]] ? Color.red : Color.green;
+            }
             foreach (var point in prism.points)
             {
                 Debug.DrawLine(point + Vector3.up * yMin, point + Vector3.up * yMax, wireFrameColor);
@@ -606,9 +703,22 @@ public class PrismManager : MonoBehaviour
 
     #region Utility Classes
 
-    private Vector3 getSupport(Prism a, Prism b, Vector3 direction ) {
-        Vector3 p1 = a.support(direction);
-        Vector3 p2 = b.support(-1*direction);
+    private Vector3 getSupport(Prism a, Prism b, Vector3 direction )
+    {
+
+        Vector3 p1;
+        Vector3 p2;
+        if (maxPrismScaleY > 0)
+        {
+            p1 = a.support3D(direction);
+            p2 = b.support3D(-1 * direction);
+        }
+        else
+        {
+            p1 = a.support(direction);
+            p2 = b.support(-1 * direction);
+        }
+
         return (p1-p2);
     }
 
@@ -625,6 +735,24 @@ public class PrismManager : MonoBehaviour
         public Prism a;
         public Prism b;
         public Vector3 penetrationDepthVectorAB;
+
+        public PrismCollision()
+        {
+            
+        }
+        public PrismCollision(Prism a, Prism b)
+        {
+            this.a = a;
+            this.b = b;
+            penetrationDepthVectorAB = Vector3.zero;
+        }
+
+        public override bool Equals(object obj)
+        {
+            
+            return ((this.a == ((PrismCollision)obj).a) && (this.b == ((PrismCollision)obj).b) || 
+                    (this.a == ((PrismCollision)obj).b) && (this.b == ((PrismCollision)obj).a)) ; 
+        }
     }
 
     private class Tuple<K,V>
