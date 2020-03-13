@@ -9,6 +9,7 @@ using Random = UnityEngine.Random;
 using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
 using System.Linq;
+using UnityEditor;
 
 public class PrismManager : MonoBehaviour
 {
@@ -31,7 +32,9 @@ public class PrismManager : MonoBehaviour
     private Vector3 dir;
     private int c = 0;
 
+    private QuadTree _root;
     #region Unity Functions
+
 
     void Start()
     {
@@ -67,7 +70,11 @@ public class PrismManager : MonoBehaviour
             prismObjects.Add(prism);
             prismColliding.Add(prismScript, false);
         }
+        
+        // region quadTree
 
+        // _root = gameObject.AddComponent<QuadTree>();
+        
         StartCoroutine(Run());
     }
     
@@ -143,9 +150,9 @@ public class PrismManager : MonoBehaviour
             {
                 for (int j = 0; j < _activeList.Count; j++)
                 {
-                    var checkPrisms = new PrismCollision();
-                    checkPrisms.a = _axisPointsX[i].Item3;
-                    checkPrisms.b = _activeList[j];
+                    var checkPrisms = new PrismCollision(_axisPointsX[i].Item3, _activeList[j]);
+                    // checkPrisms.a = _axisPointsX[i].Item3;
+                    // checkPrisms.b = _activeList[j];
                     outputListX.Add(checkPrisms);
                 }
                 _activeList.Add(_axisPointsX[i].Item3);
@@ -163,18 +170,46 @@ public class PrismManager : MonoBehaviour
 
     private IEnumerable<PrismCollision> PotentialCollisions()
     {
-        var olx = collisionAlongX();
-        List<PrismCollision> l = collisionAlongZ(olx);
-        // Debug.Log("New " + l.Count());
-        
+        // Sort and Sweep
+        List<PrismCollision> l = SortAndSweep();
         foreach(var checkPrisms in l)
         {
-            // Debug.Log("Collision checking b/w "+checkPrisms.a.name+" "+checkPrisms.b.name);
             yield return checkPrisms;
         }
-
+        
+        
+        // QuadTree
+        // if (_root == null)
+        // {
+        // _root = new QuadTree(0, new rectangle(new Vector3(-prismRegionRadiusXZ, 0f, -prismRegionRadiusXZ), new Vector3(prismRegionRadiusXZ, 0f, prismRegionRadiusXZ)));
+        // foreach (var prism in prisms)
+        // {
+        //     _root.insert(prism);
+        // }
+        // // }
+        //
+        // List<PrismCollision> l = new List<PrismCollision>();
+        // foreach (var prism in prisms)
+        // {
+        //     List<Prism> siblings = _root.retrieve(prism);
+        //     foreach (var prism2 in siblings)
+        //     {
+        //         var collision = new PrismCollision(prism, prism2);
+        //         if ((prism2 != prism) && !l.Contains(collision))
+        //         {
+        //             l.Add(collision);
+        //             yield return collision;
+        //         }
+        //     }
+        // }
+        // Debug.Log(l.Count);
         yield break;
+    }
 
+    private List<PrismCollision> SortAndSweep()
+    {
+        var olx = collisionAlongX();
+        return collisionAlongZ(olx);
     }
 
     private List<PrismCollision> collisionAlongZ(List<PrismCollision> olx)
@@ -426,7 +461,7 @@ public class PrismManager : MonoBehaviour
     {
 
         // scaling the penetration depth slighly to completely resolve the collision
-        var scale = 1.01f;
+        var scale = 1.05f;
 
         if (maxPrismScaleY == 0) //2d
         {
@@ -700,6 +735,24 @@ public class PrismManager : MonoBehaviour
         public Prism a;
         public Prism b;
         public Vector3 penetrationDepthVectorAB;
+
+        public PrismCollision()
+        {
+            
+        }
+        public PrismCollision(Prism a, Prism b)
+        {
+            this.a = a;
+            this.b = b;
+            penetrationDepthVectorAB = Vector3.zero;
+        }
+
+        public override bool Equals(object obj)
+        {
+            
+            return ((this.a == ((PrismCollision)obj).a) && (this.b == ((PrismCollision)obj).b) || 
+                    (this.a == ((PrismCollision)obj).b) && (this.b == ((PrismCollision)obj).a)) ; 
+        }
     }
 
     private class Tuple<K,V>
