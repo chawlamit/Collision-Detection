@@ -11,6 +11,7 @@ public class RectPrism : Prism
         points = new Vector3[] { new Vector3(0.5f, 0, 0.5f), new Vector3(0.5f, 0, -0.5f), new Vector3(-0.5f, 0, -0.5f), new Vector3(-0.5f, 0, 0.5f) };
         midY = 0;
         height = 1;
+        create3d();
     }
     
     void Update()
