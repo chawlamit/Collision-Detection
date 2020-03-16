@@ -11,6 +11,7 @@ using Vector3 = UnityEngine.Vector3;
 using System.Linq;
 using UnityEditor;
 
+
 public class PrismManager : MonoBehaviour
 {
     public int prismCount = 0;
@@ -26,7 +27,7 @@ public class PrismManager : MonoBehaviour
     private GameObject prismParent;
     private Dictionary<Prism,bool> prismColliding = new Dictionary<Prism, bool>();
 
-    private const float UPDATE_RATE = 0.5f;
+    private const float UPDATE_RATE = 1f;
     private int numofpointinsimplex=0;
     private List<Vector3> pointList = new List<Vector3>();
     private Vector3 dir;
@@ -461,7 +462,7 @@ public class PrismManager : MonoBehaviour
     {
 
         // scaling the penetration depth slighly to completely resolve the collision
-        var scale = 1.05f;
+        var scale = 1.0f;
 
         if (maxPrismScaleY == 0) //2d
         {
